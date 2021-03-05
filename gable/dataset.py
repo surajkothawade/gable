@@ -1,11 +1,8 @@
 import os
 import torch
-from torchvision.datasets.folder import has_file_allowed_extension, pil_loader
+from torchvision.datasets.folder import has_file_allowed_extension, pil_loader, IMG_EXTENSIONS
 import numpy as np
 from typing import Tuple, List, Dict, Optional, Callable, cast, Union, Any
-
-
-IMG_EXTENSIONS = (".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif", ".tiff", ".webp")
 
 
 def make_dataset(
@@ -78,7 +75,7 @@ def make_dataset(
     return instances
 
 
-def find_classes(folder: str) -> Tuple[List[str], Dict[str, int]]:
+def find_classes(folder: str) -> List[str]:
     """
     Finds the class folders in a dataset.
 
