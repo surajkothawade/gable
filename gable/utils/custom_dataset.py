@@ -12,6 +12,72 @@ import PIL.Image as Image
 from sklearn.datasets import load_boston
 
 #TODO: Add func for att imbalance
+from torch.utils.data import Dataset
+class custom_subset(Dataset):
+    r"""
+    Subset of a dataset at specified indices.
+
+    Arguments:
+        dataset (Dataset): The whole Dataset
+        indices (sequence): Indices in the whole set selected for subset
+        labels(sequence) : targets as required for the indices. will be the same length as indices
+    """
+    def __init__(self, dataset, indices, labels):
+        self.dataset = torch.utils.data.Subset(dataset, indices)
+        self.targets = labels.type(torch.long)
+    def __getitem__(self, idx):
+        image = self.dataset[idx][0]
+        target = self.targets[idx]
+        return (image, target)
+
+    def __len__(self):
+        return len(self.targets)
+
+class DataHandler_CIFAR10(Dataset):
+    """
+    Data Handler to load CIFAR10 dataset.
+    This class extends :class:`torch.utils.data.Dataset` to handle 
+    loading data even without labels
+
+    Parameters
+    ----------
+    X: numpy array
+        Data to be loaded   
+    y: numpy array, optional
+        Labels to be loaded (default: None)
+    select: bool
+        True if loading data without labels, False otherwise
+    """
+
+    def __init__(self, X, Y=None, select=True):
+        """
+        Constructor
+        """
+        self.select = select
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        if not self.select:
+            self.X = X
+            self.targets = Y
+            self.transform = transform
+        else:
+            self.X = X
+            self.transform = transform
+
+    def __getitem__(self, index):
+        if not self.select:
+            x, y = self.X[index], self.targets[index]
+            x = Image.fromarray(x)
+            x = self.transform(x)
+            return (x, y)
+
+        else:
+            x = self.X[index]
+            x = Image.fromarray(x)
+            x = self.transform(x)
+            return x
+
+    def __len__(self):
+        return len(self.X)
 
 def create_class_imb(fullset, split_cfg, num_cls):
     train_idx = []
@@ -37,11 +103,12 @@ def create_class_imb(fullset, split_cfg, num_cls):
         val_idx += class_val_idx
         lake_idx += class_lake_idx
 
-    train_set = torch.utils.data.Subset(fullset, train_idx)
-    val_set = torch.utils.data.Subset(fullset, val_idx)
-    lake_set = torch.utils.data.Subset(fullset, lake_idx)
+    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
+    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
     return train_set, val_set, lake_set, selected_classes
 
+#TODO: Add attimb, duplicates, weak aug, out-of-dist settings
 def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
     if(not(os.path.exists(datadir))):
         os.mkdir(datadir)
@@ -56,10 +123,43 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
         fullset = torchvision.datasets.CIFAR10(root=datadir, train=True, download=True, transform=cifar_transform)
         test_set = torchvision.datasets.CIFAR10(root=datadir, train=False, download=True, transform=cifar_transform)
         if(feature=="classimb"):
-            train_set, val_set, lake_set = create_class_imb(fullset, split_cfg, num_cls)
-        print("CIFAR-10 Custom dataset stats: Train size: ", len(train_idx), "Val size: ", len(val_idx), "Lake size: ", len(lake_idx))
-
-        return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls)
+            print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+        if(feature=="vanilla"):
+            X = fullset.data
+            y = torch.from_numpy(np.array(fullset.targets))
+            X_tr = X[:5000]
+            y_tr = y[:5000]
+            X_unlabeled = X[5000:49000]
+            y_unlabeled = y[5000:49000]
+            X_val = X[49000:]
+            y_val = y[49000:]
+            train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
+            lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
+            val_set = DataHandler_CIFAR10(X_val, y_val, False)
+            print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            return train_set, val_set, test_set, lake_set, num_cls
+        if(feature=="duplicate"):
+            num_rep=5
+            X = fullset.data
+            y = torch.from_numpy(np.array(fullset.targets))
+            X_tr = X[:500]
+            y_tr = y[:500]
+            X_unlabeled = X[500:49000]
+            y_unlabeled = y[500:49000]
+            X_val = X[49000:]
+            y_val = y[49000:]
+            X_unlabeled_rep = np.repeat(X_unlabeled[:2000], num_rep, axis=0)
+            y_unlabeled_rep = np.repeat(y_unlabeled[:2000], num_rep, axis=0)
+            assert((X_unlabeled_rep[0]==X_unlabeled_rep[num_rep-1]).all())
+            assert((y_unlabeled_rep[0]==y_unlabeled_rep[num_rep-1]).all())
+            train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
+            lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
+            val_set = DataHandler_CIFAR10(X_val, y_val, False)
+            print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            return train_set, val_set, test_set, lake_set, num_cls
+        
 
     if(dset_name=="mnist"):
         np.random.seed(42)
@@ -73,7 +173,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
         test_set = torchvision.datasets.MNIST(root=datadir, train=False, download=True, transform=mnist_transform)
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls)
-        print("MNIST Custom dataset stats: Train size: ", len(train_idx), "Val size: ", len(val_idx), "Lake size: ", len(lake_idx))
+        print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
 
         return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
 
@@ -85,10 +185,10 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
         fullset = torchvision.datasets.CIFAR100(root=datadir, train=True, download=True, transform=cifar100_transform)
-        testset = torchvision.datasets.CIFAR100(root=datadir, train=False, download=True, transform=cifar100_transform)
+        test_set = torchvision.datasets.CIFAR100(root=datadir, train=False, download=True, transform=cifar100_transform)
         if(feature=="classimb"):
-            train_set, val_set, lake_set = create_class_imb(fullset, split_cfg, num_cls)
-        print("CIFAR-100 Custom dataset stats: Train size: ", len(train_idx), "Val size: ", len(val_idx), "Lake size: ", len(lake_idx))
+            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls)
+        print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
 
         return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
 
