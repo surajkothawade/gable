@@ -158,7 +158,10 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
             lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
             val_set = DataHandler_CIFAR10(X_val, y_val, False)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
-            return train_set, val_set, test_set, lake_set, num_cls
+            if(isnumpy):
+                return X_tr, y_tr, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
         
 
     if(dset_name=="mnist"):
