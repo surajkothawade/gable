@@ -129,29 +129,32 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False):
         if(feature=="vanilla"):
             X = fullset.data
             y = torch.from_numpy(np.array(fullset.targets))
-            X_tr = X[:5000]
-            y_tr = y[:5000]
-            X_unlabeled = X[5000:49000]
-            y_unlabeled = y[5000:49000]
-            X_val = X[49000:]
-            y_val = y[49000:]
+            X_tr = X[:split_cfg['train_size']]
+            y_tr = y[:split_cfg['train_size']]
+            X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+            y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+            X_val = X[len(X)-split_cfg['val_size']:]
+            y_val = y[len(X)-split_cfg['val_size']:]
             train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
-            lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
+            lake_set = DataHandler_CIFAR10(X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], False)
             val_set = DataHandler_CIFAR10(X_val, y_val, False)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
-            return train_set, val_set, test_set, lake_set, num_cls
+            if(isnumpy):
+                return X_tr, y_tr, X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
         if(feature=="duplicate"):
-            num_rep=5
+           num_rep=split_cfg['num_rep']
             X = fullset.data
             y = torch.from_numpy(np.array(fullset.targets))
-            X_tr = X[:500]
-            y_tr = y[:500]
-            X_unlabeled = X[500:49000]
-            y_unlabeled = y[500:49000]
-            X_val = X[49000:]
-            y_val = y[49000:]
-            X_unlabeled_rep = np.repeat(X_unlabeled[:2000], num_rep, axis=0)
-            y_unlabeled_rep = np.repeat(y_unlabeled[:2000], num_rep, axis=0)
+            X_tr = X[:split_cfg['train_size']]
+            y_tr = y[:split_cfg['train_size']]
+            X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+            y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+            X_val = X[len(X)-split_cfg['val_size']:]
+            y_val = y[len(X)-split_cfg['val_size']:]
+            X_unlabeled_rep = np.repeat(X_unlabeled[:split_cfg['lake_size']], num_rep, axis=0)
+            y_unlabeled_rep = np.repeat(y_unlabeled[:split_cfg['lake_size']], num_rep, axis=0)
             assert((X_unlabeled_rep[0]==X_unlabeled_rep[num_rep-1]).all())
             assert((y_unlabeled_rep[0]==y_unlabeled_rep[num_rep-1]).all())
             train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
