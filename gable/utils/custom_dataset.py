@@ -177,6 +177,41 @@ def create_class_imb(fullset, split_cfg, num_cls, isnumpy, augVal):
     else:
         return train_set, val_set, lake_set, selected_classes
 
+def getDuplicateData(fullset, split_cfg):
+    num_rep=split_cfg['num_rep']
+    X = fullset.data
+    y = torch.from_numpy(np.array(fullset.targets))
+    X_tr = X[:split_cfg['train_size']]
+    y_tr = y[:split_cfg['train_size']]
+    X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+    y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+    X_val = X[len(X)-split_cfg['val_size']:]
+    y_val = y[len(X)-split_cfg['val_size']:]
+    X_unlabeled_rep = np.repeat(X_unlabeled[:split_cfg['lake_subset_repeat_size']], num_rep, axis=0)
+    y_unlabeled_rep = np.repeat(y_unlabeled[:split_cfg['lake_subset_repeat_size']], num_rep, axis=0)
+    assert((X_unlabeled_rep[0]==X_unlabeled_rep[num_rep-1]).all())
+    assert((y_unlabeled_rep[0]==y_unlabeled_rep[num_rep-1]).all())
+    X_unlabeled_rep = np.concatenate((X_unlabeled_rep, X_unlabeled[split_cfg['lake_subset_repeat_size']:split_cfg['lake_size']]), axis=0)
+    y_unlabeled_rep = torch.from_numpy(np.concatenate((y_unlabeled_rep, y_unlabeled[split_cfg['lake_subset_repeat_size']:split_cfg['lake_size']]), axis=0))
+    train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
+    lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
+    val_set = DataHandler_CIFAR10(X_val, y_val, False)
+    return X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, lake_set
+
+def getVanillaData(fullset, split_cfg):
+    X = fullset.data
+    y = torch.from_numpy(np.array(fullset.targets))
+    X_tr = X[:split_cfg['train_size']]
+    y_tr = y[:split_cfg['train_size']]
+    X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+    y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
+    X_val = X[len(X)-split_cfg['val_size']:]
+    y_val = y[len(X)-split_cfg['val_size']:]
+    train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
+    lake_set = DataHandler_CIFAR10(X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], False)
+    val_set = DataHandler_CIFAR10(X_val, y_val, False)
+    return X_tr, y_tr, X_val, y_val, X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], train_set, val_set, lake_set
+
 #TODO: Add attimb, duplicates, weak aug, out-of-dist settings
 def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, augVal=False):
     if(not(os.path.exists(datadir))):
@@ -207,43 +242,16 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(fullset, test_set, split_cfg, num_cls, isnumpy, augVal)
                 print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set), "Test set: ", len(test_set))
                 return train_set, val_set, test_set, lake_set, ood_cls_idx, num_cls
-        if(feature=="vanilla"):
-            X = fullset.data
-            y = torch.from_numpy(np.array(fullset.targets))
-            X_tr = X[:split_cfg['train_size']]
-            y_tr = y[:split_cfg['train_size']]
-            X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
-            y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
-            X_val = X[len(X)-split_cfg['val_size']:]
-            y_val = y[len(X)-split_cfg['val_size']:]
-            train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
-            lake_set = DataHandler_CIFAR10(X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], False)
-            val_set = DataHandler_CIFAR10(X_val, y_val, False)
+        if(feature=="vanilla"): 
+            X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set = getVanillaData(fullset, split_cfg)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             if(isnumpy):
-                return X_tr, y_tr, X_val, y_val, X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], train_set, val_set, test_set, lake_set, num_cls
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, num_cls
             else:
                 return train_set, val_set, test_set, lake_set, num_cls
 
         if(feature=="duplicate"):
-            num_rep=split_cfg['num_rep']
-            X = fullset.data
-            y = torch.from_numpy(np.array(fullset.targets))
-            X_tr = X[:split_cfg['train_size']]
-            y_tr = y[:split_cfg['train_size']]
-            X_unlabeled = X[split_cfg['train_size']:len(X)-split_cfg['val_size']]
-            y_unlabeled = y[split_cfg['train_size']:len(X)-split_cfg['val_size']]
-            X_val = X[len(X)-split_cfg['val_size']:]
-            y_val = y[len(X)-split_cfg['val_size']:]
-            X_unlabeled_rep = np.repeat(X_unlabeled[:split_cfg['lake_subset_repeat_size']], num_rep, axis=0)
-            y_unlabeled_rep = np.repeat(y_unlabeled[:split_cfg['lake_subset_repeat_size']], num_rep, axis=0)
-            assert((X_unlabeled_rep[0]==X_unlabeled_rep[num_rep-1]).all())
-            assert((y_unlabeled_rep[0]==y_unlabeled_rep[num_rep-1]).all())
-            X_unlabeled_rep = np.concatenate((X_unlabeled_rep, X_unlabeled[split_cfg['lake_subset_repeat_size']:split_cfg['lake_size']]), axis=0)
-            y_unlabeled_rep = torch.from_numpy(np.concatenate((y_unlabeled_rep, y_unlabeled[split_cfg['lake_subset_repeat_size']:split_cfg['lake_size']]), axis=0))
-            train_set = DataHandler_CIFAR10(X_tr, y_tr, False)
-            lake_set = DataHandler_CIFAR10(X_unlabeled_rep, y_unlabeled_rep, False)
-            val_set = DataHandler_CIFAR10(X_val, y_val, False)
+            X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, lake_set = getDuplicateData(fullset, split_cfg)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             if(isnumpy):
                 return X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, test_set, lake_set, num_cls
@@ -261,9 +269,9 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         test_set = torchvision.datasets.MNIST(root=datadir, train=False, download=True, transform=mnist_transform)
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls)
-        print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
 
-        return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+            return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
 
     if(dset_name=="cifar100"):
         num_cls=100
@@ -274,8 +282,37 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         fullset = torchvision.datasets.CIFAR100(root=datadir, train=True, download=True, transform=cifar100_transform)
         test_set = torchvision.datasets.CIFAR100(root=datadir, train=False, download=True, transform=cifar100_transform)
         if(feature=="classimb"):
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls)
-        print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+            else:    
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+        if(feature=="ood"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(fullset, test_set, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set), "Test set: ", len(test_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, ood_cls_idx, num_cls
+            else:
+                train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(fullset, test_set, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set), "Test set: ", len(test_set))
+                return train_set, val_set, test_set, lake_set, ood_cls_idx, num_cls
+        
+        if(feature=="vanilla"):
+            X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set = getVanillaData(fullset, split_cfg)
+            print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            if(isnumpy):
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
 
-        return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+        if(feature=="duplicate"):
+            X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, lake_set = getDuplicateData(fullset, split_cfg)
+            print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            if(isnumpy):
+                return X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
 
