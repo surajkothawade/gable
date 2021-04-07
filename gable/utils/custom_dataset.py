@@ -84,6 +84,55 @@ class DataHandler_CIFAR10(Dataset):
     def __len__(self):
         return len(self.X)
 
+class DataHandler_UTKFace(Dataset):
+    """
+    Data Handler to load UTKFace dataset.
+    This class extends :class:`torch.utils.data.Dataset` to handle 
+    loading data even without labels
+
+    Parameters
+    ----------
+    X: numpy array
+        Data to be loaded   
+    y: numpy array, optional
+        Labels to be loaded (default: None)
+    select: bool
+        True if loading data without labels, False otherwise
+    """
+    def __init__(self, X, Y=None, select=True, use_test_transform = False):
+        """
+        Constructor
+        """
+        self.select = select
+        if(use_test_transform):
+            transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
+        else:
+            transform = transforms.Compose([transforms.RandomCrop(200, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
+        if not self.select:
+            self.X = X
+            self.targets = Y
+            self.transform = transform
+        else:
+            self.X = X
+            self.transform = transform
+
+    def __getitem__(self, index):
+        if not self.select:
+            x, y = self.X[index], self.targets[index]
+            x = Image.fromarray(np.transpose(x, (1,2,0)))
+            x = self.transform(x)
+            return (x, y)
+
+        else:
+            x = self.X[index]
+            x = Image.fromarray(x)
+            x = self.transform(x)
+            return x
+
+    def __len__(self):
+        return len(self.X)
+    
+
 def create_ood_data(fullset, testset, split_cfg, num_cls, isnumpy, augVal):
     np.random.seed(42)
     train_idx = []
