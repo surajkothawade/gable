@@ -183,6 +183,78 @@ def create_ood_data(fullset, testset, split_cfg, num_cls, isnumpy, augVal):
     else:
         return train_set, val_set, test_set, lake_set, selected_classes
 
+def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
+    
+    # Set random seed to ensure reproducibility
+    np.random.seed(42)
+    
+    # Selection idx for train, val, lake sets
+    train_idx = []
+    val_idx = []
+    lake_idx = []
+    
+    # Randomly select attributes from the attribute domain to imbalance
+    selected_attribute_classes = np.random.choice(np.arange(attr_domain_size), size=split_cfg['num_attr_cls_imb'], replace=False)
+    
+    # Obtain the target attribute to imbalance
+    imbalance_attribute = getattr(fullset, split_cfg['attr'])
+    
+    # Loop over all classes of the attribute domain
+    for i in range(attr_domain_size):
+        full_idx_attr_class = list(torch.where(torch.Tensor(imbalance_attribute) == i)[0].cpu().numpy())
+        
+        # Do not bother with attribute classes that have no elements to choose.
+        if len(full_idx_attr_class) == 0:
+            continue
+        
+        # If the attribute was chosen to be imbalanced, select a random subset of the imbalanced size for train, val, lake sets.
+        # Otherwise, select random subsets of the default size for train, test, val sets.
+        if i in selected_attribute_classes:
+            attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_imb_train'], replace=False))
+            remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
+            attr_class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_val'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
+            attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_lake'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
+        else:
+            attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_train'], replace=False))
+            remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
+            attr_class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_val'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
+            attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_lake'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
+
+        # Add selected idx to each set. If augVal, then augment training set 
+        # with validation samples from the imbalanced attribute classes     
+        train_idx += attr_class_train_idx
+        if augVal and i in selected_attribute_classes:
+            train_idx += attr_class_val_idx
+        val_idx += attr_class_val_idx
+        lake_idx += attr_class_lake_idx
+
+    # Create custom subsets for each set
+    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
+    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])      
+
+    # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
+    if isnumpy:
+        X = fullset.data
+        y = torch.from_numpy(np.array(fullset.targets))
+        a = torch.from_numpy(np.array(imbalance_attribute))
+        X_tr = X[train_idx]
+        y_tr = y[train_idx]
+        a_tr = a[train_idx]
+        X_val = X[val_idx]
+        y_val = y[val_idx]
+        a_val = a[val_idx]
+        X_unlabeled = X[lake_idx]
+        y_unlabeled = y[lake_idx]
+        a_unlabeled = a[lake_idx]
+        return X_tr, y_tr, a_tr, X_val, y_val, a_val, X_unlabeled, y_unlabeled, a_unlabeled, train_set, val_set, lake_set, selected_attribute_classes
+    else:
+        return train_set, val_set, lake_set, selected_attribute_classes
+
 def create_class_imb(fullset, split_cfg, num_cls, isnumpy, augVal):
     np.random.seed(42)
     train_idx = []

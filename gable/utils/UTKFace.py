@@ -24,7 +24,6 @@ class UTKFace(VisionDataset):
     
     def __init__(self,
             root: str,
-            split: str = "train",
             target_type: Union[List[str], str] = "age",
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
@@ -48,7 +47,6 @@ class UTKFace(VisionDataset):
         target = self.targets[index]
         
         # Conforming to other datasets
-        print(self.data[index])
         image = PIL.Image.fromarray(self.data[index])
         
         # If a transform was provided, transform the image
@@ -123,19 +121,19 @@ class UTKFace(VisionDataset):
             images[i] = image_numpy
         
         # Set arrays as attributes of class
-        self.age_attributes = age_attributes
-        self.gender_attributes = gender_attributes
-        self.race_attributes = race_attributes
+        self.age = age_attributes
+        self.gender = gender_attributes
+        self.race = race_attributes
         self.data = images
         
         # Set target array
         # We choose the age as the label of the image. If the 
         if self.target_attribute == "age":
-            self.targets = self.age_attributes
+            self.targets = self.age
         elif self.target_attribute == "gender":
-            self.targets = self.gender_attributes
+            self.targets = self.gender
         elif self.target_attribute == "race":
-            self.targets = self.race_attributes
+            self.targets = self.race
 
     def _check_integrity(self) -> bool:
         
