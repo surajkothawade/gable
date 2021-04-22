@@ -101,10 +101,11 @@ class DataHandler_UTKFace(Dataset):
         Constructor
         """
         self.select = select
+        RESIZE_DIM = 192
         if(use_test_transform):
-            transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
+            transform = transforms.Compose([transforms.Resize((RESIZE_DIM, RESIZE_DIM)), transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
         else:
-            transform = transforms.Compose([transforms.RandomCrop(200, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
+            transform = transforms.Compose([transforms.Resize((RESIZE_DIM, RESIZE_DIM)), transforms.RandomCrop(200, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]) # ImageNet mean/std
         if not self.select:
             self.X = X
             self.targets = Y
@@ -441,9 +442,11 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
     if(dset_name=="utkface"):
         # We are targeting the age class
         num_cls=117
+        RESIZE_DIM=192
         
         # Pull transform from above
         utkface_transform = transforms.Compose([
+            transforms.Resize((RESIZE_DIM, RESIZE_DIM)),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         ])

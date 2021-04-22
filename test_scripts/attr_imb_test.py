@@ -1,5 +1,7 @@
 from gable.utils.custom_dataset import load_dataset_custom
 
+from torch.utils.data import DataLoader
+
 datadir = "C:/Users/nbeck/Documents/pytorch_data"
 dset_name = "utkface"
 feature = "attrimb"
@@ -39,3 +41,8 @@ print(y_val)
 print()
 print("LAKE LABEL/ATTRIBUTE")
 print(y_unlabeled)
+
+test_dl = DataLoader(test_set, batch_size=1)
+
+for i, (x,y) in enumerate(test_dl):
+    print(x.shape)
