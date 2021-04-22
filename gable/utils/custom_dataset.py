@@ -3,18 +3,15 @@ import numpy as np
 import os
 import torch
 import torchvision
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from torch.utils.data import Dataset, random_split
+from torch.utils.data import Dataset
 from torchvision import transforms
 import PIL.Image as Image
-from sklearn.datasets import load_boston
+
+from .UTKFace import UTKFace
+
 np.random.seed(42)
 torch.manual_seed(42)
 
-#TODO: Add func for att imbalance
-from torch.utils.data import Dataset
 class custom_subset(Dataset):
     r"""
     Subset of a dataset at specified indices.
@@ -192,9 +189,10 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     train_idx = []
     val_idx = []
     lake_idx = []
+    test_idx = []
     
-    # Randomly select attributes from the attribute domain to imbalance
-    selected_attribute_classes = np.random.choice(np.arange(attr_domain_size), size=split_cfg['num_attr_cls_imb'], replace=False)
+    # Get specific values of the imbalance attribute to apply the imbalance
+    selected_attribute_classes = split_cfg['attr_imb_cls']
     
     # Obtain the target attribute to imbalance
     imbalance_attribute = getattr(fullset, split_cfg['attr'])
@@ -216,6 +214,8 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
+            attr_class_test_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_test'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_test_idx))
         else:
             attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_train'], replace=False))
             remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
@@ -223,6 +223,8 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
+            attr_class_test_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_test'], replace=False))
+            remain_idx = list(set(remain_idx) - set(attr_class_test_idx))
 
         # Add selected idx to each set. If augVal, then augment training set 
         # with validation samples from the imbalanced attribute classes     
@@ -231,29 +233,28 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             train_idx += attr_class_val_idx
         val_idx += attr_class_val_idx
         lake_idx += attr_class_lake_idx
+        test_idx += attr_class_test_idx
 
     # Create custom subsets for each set
     train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
     val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
-    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])      
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
+    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx])    
 
     # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
     if isnumpy:
         X = fullset.data
         y = torch.from_numpy(np.array(fullset.targets))
-        a = torch.from_numpy(np.array(imbalance_attribute))
         X_tr = X[train_idx]
         y_tr = y[train_idx]
-        a_tr = a[train_idx]
         X_val = X[val_idx]
         y_val = y[val_idx]
-        a_val = a[val_idx]
         X_unlabeled = X[lake_idx]
         y_unlabeled = y[lake_idx]
-        a_unlabeled = a[lake_idx]
-        return X_tr, y_tr, a_tr, X_val, y_val, a_val, X_unlabeled, y_unlabeled, a_unlabeled, train_set, val_set, lake_set, selected_attribute_classes
+        
+        return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, selected_attribute_classes
     else:
-        return train_set, val_set, lake_set, selected_attribute_classes
+        return train_set, val_set, test_set, lake_set, selected_attribute_classes
 
 def create_class_imb(fullset, split_cfg, num_cls, isnumpy, augVal):
     np.random.seed(42)
@@ -437,3 +438,26 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
             else:
                 return train_set, val_set, test_set, lake_set, num_cls
 
+    if(dset_name=="utkface"):
+        # We are targeting the age class
+        num_cls=117
+        
+        # Pull transform from above
+        utkface_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
+        
+        # Get UTKFace
+        fullset = UTKFace(root=datadir, download=True, transform=utkface_transform)
+        
+        # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
+        if(feature=="attrimb"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
+                print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
+            else:
+                train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
+                print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
+                return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
