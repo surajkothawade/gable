@@ -193,7 +193,7 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     test_idx = []
     
     # Get specific values of the imbalance attribute to apply the imbalance
-    selected_attribute_classes = split_cfg['attr_imb_cls']
+    selected_attribute_classes = np.array(split_cfg['attr_imb_cls'])
     
     # Obtain the target attribute to imbalance
     imbalance_attribute = getattr(fullset, split_cfg['attr'])
