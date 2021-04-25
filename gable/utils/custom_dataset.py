@@ -118,7 +118,7 @@ class DataHandler_UTKFace(Dataset):
             x, y = self.X[index], self.targets[index]
             x = Image.fromarray(x)
             x = self.transform(x)
-            return (x, y), index
+            return x, y, index
 
         else:
             x = self.X[index]
