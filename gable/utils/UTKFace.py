@@ -85,9 +85,9 @@ class UTKFace(VisionDataset):
         all_image_files = os.listdir(images_path)
         
         # Create numpy arrays to hold each datapoint
-        age_attributes = np.zeros(len(all_image_files))
-        gender_attributes = np.zeros(len(all_image_files))
-        race_attributes = np.zeros(len(all_image_files))
+        age_attributes = np.zeros(len(all_image_files), dtype=np.uint64)
+        gender_attributes = np.zeros(len(all_image_files), dtype=np.uint64)
+        race_attributes = np.zeros(len(all_image_files), dtype=np.uint64)
         images = np.zeros((len(all_image_files), 200, 200, 3), dtype=np.uint8)        
 
         for i in range(len(all_image_files)):
