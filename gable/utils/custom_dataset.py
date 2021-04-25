@@ -1,4 +1,3 @@
-
 import numpy as np
 import os
 import torch
@@ -117,15 +116,15 @@ class DataHandler_UTKFace(Dataset):
     def __getitem__(self, index):
         if not self.select:
             x, y = self.X[index], self.targets[index]
-            x = Image.fromarray(np.transpose(x, (1,2,0)))
+            x = Image.fromarray(x)
             x = self.transform(x)
-            return (x, y)
+            return (x, y), index
 
         else:
             x = self.X[index]
             x = Image.fromarray(x)
             x = self.transform(x)
-            return x
+            return x, index
 
     def __len__(self):
         return len(self.X)
