@@ -14,15 +14,22 @@ torch.manual_seed(42)
 class custom_subset(Dataset):
     r"""
     Subset of a dataset at specified indices.
-
     Arguments:
         dataset (Dataset): The whole Dataset
         indices (sequence): Indices in the whole set selected for subset
         labels(sequence) : targets as required for the indices. will be the same length as indices
     """
-    def __init__(self, dataset, indices, labels):
+
+
+
+    def __init__(self, dataset, indices, labels, age_attributes=None, race_attributes=None, gender_attributes=None):
         self.dataset = torch.utils.data.Subset(dataset, indices)
         self.targets = labels.type(torch.long)
+        if age_attributes is not None: self.age = age_attributes[indices]
+        if race_attributes is not None: self.race = race_attributes[indices]
+        if gender_attributes is not None: self.gender = gender_attributes[indices]
+        self.indices = np.array(indices)
+
     def __getitem__(self, idx):
         image = self.dataset[idx][0]
         target = self.targets[idx]
@@ -30,6 +37,13 @@ class custom_subset(Dataset):
 
     def __len__(self):
         return len(self.targets)
+
+    def get_attr_val(self, attribute, indices):
+        # Obtain the target attribute to imbalance
+        imbalance_attribute = getattr(self, attribute)
+
+        # Return only the imbalance attribute values that correspond to the indices.
+        return imbalance_attribute[indices]
 
 class DataHandler_CIFAR10(Dataset):
     """
@@ -236,10 +250,10 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
         test_idx += attr_class_test_idx
 
     # Create custom subsets for each set
-    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
-    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
-    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
-    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx])    
+    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx], age_attributes=fullset.age[train_idx], race_attributes=fullset.race[train_idx], gender_attributes=fullset.gender[train_idx])
+    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx], age_attributes=fullset.age[val_idx], race_attributes=fullset.race[val_idx], gender_attributes=fullset.gender[val_idx])
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx], age_attributes=fullset.age[lake_idx], race_attributes=fullset.race[lake_idx], gender_attributes=fullset.gender[lake_idx])
+    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx], age_attributes=fullset.age[test_idx], race_attributes=fullset.race[test_idx], gender_attributes=fullset.gender[test_idx])    
 
     # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
     if isnumpy:
