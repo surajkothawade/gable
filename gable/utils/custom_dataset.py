@@ -465,7 +465,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         ])
         
         # Get UTKFace
-        fullset = UTKFace(root=datadir, target_type=split_cfg["attr"], download=True, transform=utkface_transform)
+        fullset = UTKFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform)
         
         # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
         if(feature=="attrimb"):
