@@ -250,10 +250,10 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
         test_idx += attr_class_test_idx
 
     # Create custom subsets for each set
-    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx], age_attributes=fullset.age[train_idx], race_attributes=fullset.race[train_idx], gender_attributes=fullset.gender[train_idx])
-    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx], age_attributes=fullset.age[val_idx], race_attributes=fullset.race[val_idx], gender_attributes=fullset.gender[val_idx])
-    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx], age_attributes=fullset.age[lake_idx], race_attributes=fullset.race[lake_idx], gender_attributes=fullset.gender[lake_idx])
-    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx], age_attributes=fullset.age[test_idx], race_attributes=fullset.race[test_idx], gender_attributes=fullset.gender[test_idx])    
+    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
+    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
+    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)    
 
     # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
     if isnumpy:
