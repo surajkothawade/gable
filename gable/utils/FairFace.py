@@ -31,7 +31,8 @@ class FairFace(VisionDataset):
             target_type: Union[List[str], str] = "age",
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
-            download: bool = False
+            download: bool = False,
+            load_cap: int = 100000
     ) -> None:
         
         # Call superconstructor
@@ -44,7 +45,7 @@ class FairFace(VisionDataset):
         self.target_attribute = target_type
         
         # Load dataset and populate in attributes
-        self._get_datapoints_as_numpy()
+        self._get_datapoints_as_numpy(load_cap)
         
     def __getitem__(self, index):
         
@@ -113,19 +114,23 @@ class FairFace(VisionDataset):
         else:
             return 6
 
-    def _get_datapoints_as_numpy(self):
+    def _get_datapoints_as_numpy(self, load_cap):
                    
         # Get path of extracted train dataset
         train_images_path = os.path.join(self.root, self.base_folder, "train")
         
+        loaded_images = 0
+
         # Get all files
         all_image_files = os.listdir(train_images_path)
                 
+        train_to_load = min(load_cap, len(all_image_files))
+
         # Create numpy arrays to hold each train datapoint
-        train_age_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        train_gender_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        train_race_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        train_images = np.zeros((len(all_image_files), 224, 224, 3), dtype=np.uint8)        
+        train_age_attributes = np.zeros(train_to_load, dtype=np.int64)
+        train_gender_attributes = np.zeros(train_to_load, dtype=np.int64)
+        train_race_attributes = np.zeros(train_to_load, dtype=np.int64)
+        train_images = np.zeros((train_to_load, 224, 224, 3), dtype=np.uint8)        
 
         # Load all the training label attributes
         train_labels_path = os.path.join(self.root, self.base_folder, "train_labels.csv")
@@ -142,6 +147,9 @@ class FairFace(VisionDataset):
             
             for (image_name, image_age, image_gender, image_race, _) in rowreader:
                 
+                if index >= train_to_load:
+                    break
+
                 image_path = os.path.join(self.root, self.base_folder, image_name)
                 image = PIL.Image.open(image_path)
                 image_numpy = np.array(image)
@@ -151,18 +159,39 @@ class FairFace(VisionDataset):
                 train_gender_attributes[index] = self.get_gender_label(image_gender)
                 train_race_attributes[index] = self.get_race_label(image_race)
                 index += 1
-                
+
+        loaded_images = train_to_load
+
+        if loaded_images >= load_cap:
+            # Set arrays as attributes of class
+            self.age = train_age_attributes
+            self.gender = train_gender_attributes
+            self.race = train_race_attributes
+            self.data = train_images
+        
+            # Set target array
+            # We choose the age as the label of the image. If the 
+            if self.target_attribute == "age":
+                self.targets = self.age
+            elif self.target_attribute == "gender":
+                self.targets = self.gender
+            elif self.target_attribute == "race":
+                self.targets = self.race
+            return
+
         # Get path of extracted val dataset
         val_images_path = os.path.join(self.root, self.base_folder, "val")
         
         # Get all files
         all_image_files = os.listdir(val_images_path)
                 
+        val_to_load = min(len(all_image_files), load_cap - loaded_images)
+
         # Create numpy arrays to hold each train datapoint
-        val_age_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        val_gender_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        val_race_attributes = np.zeros(len(all_image_files), dtype=np.int64)
-        val_images = np.zeros((len(all_image_files), 224, 224, 3), dtype=np.uint8)        
+        val_age_attributes = np.zeros(val_to_load, dtype=np.int64)
+        val_gender_attributes = np.zeros(val_to_load, dtype=np.int64)
+        val_race_attributes = np.zeros(val_to_load, dtype=np.int64)
+        val_images = np.zeros((val_to_load, 224, 224, 3), dtype=np.uint8)        
 
         # Load all the training label attributes
         val_labels_path = os.path.join(self.root, self.base_folder, "val_labels.csv")
@@ -179,6 +208,9 @@ class FairFace(VisionDataset):
             
             for (image_name, image_age, image_gender, image_race, _) in rowreader:
                 
+                if index >= val_to_load:
+                    break
+                    
                 image_path = os.path.join(self.root, self.base_folder, image_name)
                 image = PIL.Image.open(image_path)
                 image_numpy = np.array(image)
