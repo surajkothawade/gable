@@ -46,6 +46,33 @@ class custom_subset(Dataset):
         # Return only the imbalance attribute values that correspond to the indices.
         return imbalance_attribute[indices]
 
+class custom_concat(Dataset):
+    r"""
+    Concat of a dataset at specified indices.
+    """
+    def __init__(self, dataset1, dataset2):
+        self.dataset = torch.utils.data.ConcatDataset([dataset1, dataset2])
+        self.targets = torch.Tensor(list(dataset1.targets) + list(dataset2.targets)).type(torch.long)
+    
+        self.age = np.concatenate((dataset1.age, dataset2.age), axis=0)
+        self.race = np.concatenate((dataset1.race, dataset2.race), axis=0)
+        self.gender = np.concatenate((dataset1.gender, dataset2.gender), axis=0)
+    
+    def __getitem__(self, idx):
+        image = self.dataset[idx][0]
+        target = self.targets[idx]
+        return (image, target)
+
+    def __len__(self):
+        return len(self.targets)
+    
+    def get_attr_val(self, attribute, indices):
+        # Obtain the target attribute to imbalance
+        imbalance_attribute = getattr(self, attribute)
+
+        # Return only the imbalance attribute values that correspond to the indices.
+        return imbalance_attribute[indices]
+
 class DataHandler_CIFAR10(Dataset):
     """
     Data Handler to load CIFAR10 dataset.
