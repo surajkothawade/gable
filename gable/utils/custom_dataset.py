@@ -6,7 +6,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import PIL.Image as Image
 
-from .UTKFace import UTKFace, FairFace
+from .UTKFace import UTKFace
+from .FairFace import FairFace
 
 np.random.seed(42)
 torch.manual_seed(42)
