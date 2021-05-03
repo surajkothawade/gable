@@ -62,7 +62,7 @@ class UTKFace(VisionDataset):
     def __len__(self) -> int:
         
         # Return the length of one of the attribute arrays
-        return len(self.age_attributes)
+        return len(self.age)
 
     def _get_datapoints_as_numpy(self):
                    

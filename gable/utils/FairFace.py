@@ -67,7 +67,7 @@ class FairFace(VisionDataset):
     def __len__(self) -> int:
         
         # Return the length of one of the attribute arrays
-        return len(self.age_attributes)
+        return len(self.age)
 
     def get_age_label(self, string_label):
         
