@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import PIL.Image as Image
 
-from .UTKFace import UTKFace
+from .UTKFace import UTKFace, FairFace
 
 np.random.seed(42)
 torch.manual_seed(42)
@@ -454,7 +454,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
 
     if(dset_name=="utkface"):
         # We are targeting the age class
-        num_cls=117
+        num_cls=2
         RESIZE_DIM=192
         
         # Pull transform from above
@@ -466,6 +466,30 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         
         # Get UTKFace
         fullset = UTKFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform)
+        
+        # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
+        if(feature=="attrimb"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
+                print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
+            else:
+                train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
+                print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
+                return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
+            
+    if(dset_name=="fairface"):
+        # We are targeting the age class
+        num_cls=9
+        
+        # Pull transform from above
+        utkface_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
+        
+        # Get UTKFace
+        fullset = FairFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform, load_cap=50000)
         
         # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
         if(feature=="attrimb"):

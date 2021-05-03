@@ -1,12 +1,13 @@
 from gable.utils.custom_dataset import load_dataset_custom
 from gable.utils.FairFace import FairFace
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 
 datadir = "C:/Users/nbeck/Documents/pytorch_data"
 dset_name = "fairface"
 feature = "attrimb"
 
-fair_face_dataset = FairFace(datadir, download=True)
+fair_face_dataset = FairFace(datadir, download=True, load_cap = 20000)
 
 for i in range(10):
     
@@ -17,6 +18,8 @@ for i in range(10):
     print(target)
     
     
+    plt.imshow(image)
+    plt.show()
 
 """
 # Set parameters like the class imbalance function. Here, we must provide an attribute domain size.
