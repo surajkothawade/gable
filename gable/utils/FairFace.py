@@ -101,7 +101,7 @@ class FairFace(VisionDataset):
         
         if string_label == "East Asian":
             return 0
-        elif string_label == "SE Asian":
+        elif string_label == "Southeast Asian":
             return 1
         elif string_label == "Indian":
             return 2
@@ -111,7 +111,7 @@ class FairFace(VisionDataset):
             return 4
         elif string_label == "White":
             return 5
-        else:
+        elif string_label == "Black":
             return 6
 
     def _get_datapoints_as_numpy(self, load_cap):
