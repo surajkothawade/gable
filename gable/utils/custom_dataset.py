@@ -54,9 +54,9 @@ class custom_concat(Dataset):
         self.dataset = torch.utils.data.ConcatDataset([dataset1, dataset2])
         self.targets = torch.Tensor(list(dataset1.targets) + list(dataset2.targets)).type(torch.long)
     
-        self.age = np.concatenate((dataset1.age, dataset2.age), axis=0)
-        self.race = np.concatenate((dataset1.race, dataset2.race), axis=0)
-        self.gender = np.concatenate((dataset1.gender, dataset2.gender), axis=0)
+        if getattr(dataset1, "age", None) is not None and getattr(dataset2, "age", None) is not None: self.age = np.concatenate((dataset1.age, dataset2.age), axis=0)
+        if getattr(dataset1, "race", None) is not None and getattr(dataset2, "race", None) is not None: self.race = np.concatenate((dataset1.race, dataset2.race), axis=0)
+        if getattr(dataset1, "gender", None) is not None and getattr(dataset2, "gender", None) is not None: self.gender = np.concatenate((dataset1.gender, dataset2.gender), axis=0)
     
     def __getitem__(self, idx):
         image = self.dataset[idx][0]
