@@ -16,6 +16,7 @@ augVal = False
 # to be the race attribute. For UTKFace, it can be one of {race, gender, age}. Note that choosing the 
 # imbalance attribute to be the same as the target attribute would be equivalent to doing a class imbalance.
 split_cfg = {
+    "target_attr": "age",
     "attr": "gender",                # The attribute to imbalance. Must be the name of the attribute of the Dataset class.
     "attr_dom_size": 2,            # The number of classes of that attribute
     "attr_imb_cls": [1],           # The specific attribute classes to imbalance
@@ -26,7 +27,8 @@ split_cfg = {
     "per_attr_train": 21,          # The number of training data points to keep for each unaffected value of the imbalance attribute domain
     "per_attr_val": 22,            # The number of validation data points to keep for each unaffected value of the imbalance attribute domain
     "per_attr_test": 9,            # The number of test data points to keep for each unaffected value of the imbalance attribute domain
-    "per_attr_lake": 23            # The number of lake data points to keep for each unaffected value of the imbalance attribute domain
+    "per_attr_lake": 23,            # The number of lake data points to keep for each unaffected value of the imbalance attribute domain
+    "age_bins": [3*x for x in range(41)]
     }
 
 # We perform the attribute imbalance
@@ -41,6 +43,8 @@ print(y_val)
 print()
 print("LAKE LABEL/ATTRIBUTE")
 print(y_unlabeled)
+
+print(num_cls)
 
 test_dl = DataLoader(test_set, batch_size=1)
 

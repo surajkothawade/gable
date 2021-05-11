@@ -27,7 +27,8 @@ class UTKFace(VisionDataset):
             target_type: Union[List[str], str] = "age",
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
-            download: bool = False
+            download: bool = False,
+            age_bins = None
     ) -> None:
         
         # Call superconstructor
@@ -40,7 +41,8 @@ class UTKFace(VisionDataset):
         self.target_attribute = target_type
         
         # Load dataset and populate in attributes
-        self._get_datapoints_as_numpy()
+        self._get_datapoints_as_numpy(age_bins)
+        self.nclasses = len(age_bins)
         
     def __getitem__(self, index):
         
@@ -64,7 +66,7 @@ class UTKFace(VisionDataset):
         # Return the length of one of the attribute arrays
         return len(self.age)
 
-    def _get_datapoints_as_numpy(self):
+    def _get_datapoints_as_numpy(self, age_bins):
                    
         # Get path of extracted dataset
         images_path = os.path.join(self.root, self.base_folder, "UTKFace")
@@ -108,6 +110,13 @@ class UTKFace(VisionDataset):
             age_attribute = int(image_attributes[0])
             gender_attribute = int(image_attributes[1])     
             race_attribute = int(image_attributes[2])
+
+            # Bin the age if bins were provided
+            if age_bins is not None:
+                for j, age_cutoff in enumerate(age_bins):
+                    if age_attribute < age_cutoff:
+                        age_attribute = j
+                        break
 
             # Populate labels
             age_attributes[i] = age_attribute

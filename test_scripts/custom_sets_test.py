@@ -1,40 +1,13 @@
-from gable.utils.custom_dataset import load_dataset_custom
+from gable.utils.custom_dataset import *
 from gable.utils.FairFace import FairFace
 from torch.utils.data import DataLoader
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
 
 datadir = "C:/Users/nbeck/Documents/pytorch_data"
 dset_name = "fairface"
 feature = "attrimb"
-
-"""
-load_cap = 500
-fair_face_dataset = FairFace(datadir, download=True, load_cap = load_cap)
-
-age_freq = [0 for x in range(9)]
-race_freq = [0 for x in range(7)]
-gend_freq = [0 for x in range(2)]
-
-for i in range(load_cap):
-    
-    image, target = fair_face_dataset[i]
-    
-    age = fair_face_dataset.age[i]
-    race = fair_face_dataset.race[i]
-    gender = fair_face_dataset.gender[i]
-    print(F"{i+1} (a,r,g): {age}, {gender}, {race}")
-    age_freq[fair_face_dataset.age[i]] += 1
-    race_freq[fair_face_dataset.race[i]] += 1
-    gend_freq[fair_face_dataset.gender[i]] += 1
-
-
-plt.imshow(fair_face_dataset.data[0])
-
-print(age_freq)
-print(race_freq)
-print(gend_freq)
-"""
-
 
 # Set parameters like the class imbalance function. Here, we must provide an attribute domain size.
 # It specifies the number of values that the imbalance attribute may take. In the case of the race 
@@ -63,27 +36,45 @@ split_cfg = {
 # We perform the attribute imbalance
 X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, selected_classes, num_cls = load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy, augVal)
 
-age_freq = [0 for x in range(9)]
-race_freq = [0 for x in range(7)]
-gend_freq = [0 for x in range(2)]
-test_this_set = test_set
-test_this_data = X_val
-test_this_label = y_val
-for i in range(len(test_this_set)):
-    
-    #plt.imshow(test_this_data[i])
-    #label = test_this_label[i]
-    #print(F"{i+1} label: {label}")
-    plt.show()
-    age = test_this_set.age[i]
-    race = test_this_set.race[i]
-    gender = test_this_set.gender[i]
-    print(F"{i+1} (a,g,r): {age}, {gender}, {race}")
-    age_freq[test_this_set.age[i]] += 1
-    race_freq[test_this_set.race[i]] += 1
-    gend_freq[test_this_set.gender[i]] += 1
-    
-print(age_freq)
-print(race_freq)
-print(gend_freq)
+# For the train_set, get two custom subsets
+idx_subset_1 = [0,1,2,3]
+idx_subset_2 = [4,5,6,7]
+lab_subset_1 = train_set.targets[idx_subset_1]
+lab_subset_2 = train_set.targets[idx_subset_2]
 
+train_subset_1 = custom_subset(train_set, idx_subset_1, lab_subset_1, train_set.age, train_set.race, train_set.gender)
+train_subset_2 = custom_subset(train_set, idx_subset_2, lab_subset_2, train_set.age, train_set.race, train_set.gender)
+
+print("SUBSET 1 BEFORE CONSTRUCTION")
+print("Label:", lab_subset_1)
+print("Age:", train_set.age[idx_subset_1])
+print("Race", train_set.race[idx_subset_1])
+print("Gender:", train_set.gender[idx_subset_1])
+print("========")
+print("SUBSET 2 BEFORE CONSTRUCTION")
+print("Label:", lab_subset_2)
+print("Age:", train_set.age[idx_subset_2])
+print("Race", train_set.race[idx_subset_2])
+print("Gender:", train_set.gender[idx_subset_2])
+print("========")
+
+print("SUBSET 1 AFTER CONSTRUCTION")
+print("Label:", train_subset_1.targets)
+print("Age:", train_subset_1.age)
+print("Race", train_subset_1.race)
+print("Gender:", train_subset_1.gender)
+print("========")
+print("SUBSET 2 AFTER CONSTRUCTION")
+print("Label:", train_subset_2.targets)
+print("Age:", train_subset_2.age)
+print("Race", train_subset_2.race)
+print("Gender:", train_subset_2.gender)
+print("========")
+
+train_concatenated_subsets = custom_concat(train_subset_1, train_subset_2)
+
+print("Concatenated Subsets")
+print("Label:", train_concatenated_subsets.targets)
+print("Age:", train_concatenated_subsets.age)
+print("Race", train_concatenated_subsets.race)
+print("Gender:", train_concatenated_subsets.gender)

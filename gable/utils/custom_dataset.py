@@ -529,7 +529,6 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
 
     if(dset_name=="utkface"):
         # We are targeting the age class
-        num_cls=2
         RESIZE_DIM=192
         
         # Pull transform from above
@@ -539,8 +538,14 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         ])
         
+        if "age_bins" in split_cfg:
+            age_bins = split_cfg["age_bins"]
+        else:
+            age_bins = None
+        
         # Get UTKFace
-        fullset = UTKFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform)
+        fullset = UTKFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform, age_bins=age_bins)
+        num_cls = fullset.nclasses
         
         # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
         if(feature=="attrimb"):
