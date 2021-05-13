@@ -5,6 +5,7 @@ import torchvision
 from torch.utils.data import Dataset
 from torchvision import transforms
 import PIL.Image as Image
+import copy
 
 from .UTKFace import UTKFace
 from .FairFace import FairFace
@@ -303,8 +304,6 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
-            attr_class_test_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_test'], replace=False))
-            remain_idx = list(set(remain_idx) - set(attr_class_test_idx))
         else:
             attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_train'], replace=False))
             remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
@@ -312,9 +311,7 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
-            attr_class_test_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_test'], replace=False))
-            remain_idx = list(set(remain_idx) - set(attr_class_test_idx))
-
+            
         # Add selected idx to each set. If augVal, then augment training set 
         # with validation samples from the imbalanced attribute classes     
         train_idx += attr_class_train_idx
@@ -322,14 +319,16 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
             train_idx += attr_class_val_idx
         val_idx += attr_class_val_idx
         lake_idx += attr_class_lake_idx
-        test_idx += attr_class_test_idx
 
     # Create custom subsets for each set
     train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
     val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
     lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
-    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)    
-
+    
+    # Specifically use the test set curated in UTKFace/FairFace
+    test_set = copy.deepcopy(fullset)
+    test_set.set_use_test_data(True)
+    
     # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
     if isnumpy:
         X = fullset.data
@@ -557,7 +556,9 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
                 print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
                 return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
-            
+      
+    # NEEDS A COUPLE CHANGES BEFORE IT CAN BE IN USE.
+    """
     if(dset_name=="fairface"):
         # We are targeting the age class
         num_cls=9
@@ -581,3 +582,4 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
                 print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
                 return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
+    """
