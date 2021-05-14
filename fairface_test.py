@@ -52,12 +52,11 @@ split_cfg = {
     "attr_imb_cls": [0,1],           # The specific attribute classes to imbalance
     "per_attr_imb_train": 1,      # The number of training data points to keep for each affected value of the imbalance attribute domain
     "per_attr_imb_val": 1,        # The number of validation data points to keep for each affected value of the imbalance attribute domain
-    "per_attr_imb_test": 1,        # The number of test data points to keep for each affected value of the imbalance attribute domain
     "per_attr_imb_lake": 1,       # The number of lake data points to keep for each affected value of the imbalance attribute domain
     "per_attr_train": 2,          # The number of training data points to keep for each unaffected value of the imbalance attribute domain
     "per_attr_val": 2,            # The number of validation data points to keep for each unaffected value of the imbalance attribute domain
-    "per_attr_test": 2,            # The number of test data points to keep for each unaffected value of the imbalance attribute domain
-    "per_attr_lake": 2            # The number of lake data points to keep for each unaffected value of the imbalance attribute domain
+    "per_attr_lake": 2,            # The number of lake data points to keep for each unaffected value of the imbalance attribute domain
+    "test_set_size_mult": 3
     }
 
 # We perform the attribute imbalance

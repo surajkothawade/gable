@@ -42,44 +42,23 @@ class UTKFace(VisionDataset):
         
         # Load dataset and populate in attributes
         self._get_datapoints_as_numpy(age_bins)
-        self._curate_test_set()
-        self.use_test_data = False
-        
-    def set_use_test_data(self, new_val):
-        self.use_test_data = True
         
     def __getitem__(self, index):
+         
+        target = self.targets[index]
         
-        if self.use_test_data:
-            target = self.test_targets[index]
-            
-            # Conforming to other datasets
-            image = PIL.Image.fromarray(self.test_data[index])
+        # Conforming to other datasets
+        image = PIL.Image.fromarray(self.data[index])
         
-            # If a transform was provided, transform the image
-            if self.transform is not None:
-                image = self.transform(image)
+        # If a transform was provided, transform the image
+        if self.transform is not None:
+            image = self.transform(image)
 
-            # If a target transform was provided, transform the target
-            if self.target_transform is not None:
-                target = self.target_transform(target)
+        # If a target transform was provided, transform the target
+        if self.target_transform is not None:
+            target = self.target_transform(target)
 
-            return image, target
-        else:    
-            target = self.targets[index]
-        
-            # Conforming to other datasets
-            image = PIL.Image.fromarray(self.data[index])
-        
-            # If a transform was provided, transform the image
-            if self.transform is not None:
-                image = self.transform(image)
-
-            # If a target transform was provided, transform the target
-            if self.target_transform is not None:
-                target = self.target_transform(target)
-
-            return image, target
+        return image, target
         
     def __len__(self) -> int:
         
@@ -88,50 +67,6 @@ class UTKFace(VisionDataset):
             return len(self.test_age)
         else:
             return len(self.age)
-
-    def _curate_test_set(self, example_factor=1):
-        
-        # We want a balance between age, race, gender in our test set.
-        # Meaning for a specific age, race, and gender tuple, we should 
-        # have a uniform distribution.
-        test_set_idx = []
-  
-        full_idx = [x for x in range(len(self.age))]
-        for i in range(self.n_age):
-            ages_to_search = np.where(self.age == i)[0]
-            ages_idx = np.array(full_idx)[ages_to_search]
-            for j in range(self.n_gender):
-                gender_project = self.gender[ages_idx]
-                age_genders_to_search = np.where(gender_project == j)[0]
-                age_genders_idx = np.array(ages_idx)[age_genders_to_search]
-                for k in range(self.n_race):
-                    age_gender_project = self.race[age_genders_idx]
-                    age_gender_races_to_search = np.where(age_gender_project == k)[0]
-                    age_gender_races_idx = np.array(age_genders_idx)[age_gender_races_to_search]
-                    for l in range(example_factor):
-                        if l >= len(age_gender_races_idx):
-                            continue
-                        add_index = age_gender_races_idx[l]
-                        test_set_idx.append(add_index)
-        
-        self.test_age = self.age[test_set_idx]
-        self.test_race = self.race[test_set_idx]
-        self.test_gender = self.gender[test_set_idx]
-        self.test_data = self.data[test_set_idx]
-        
-        self.age = np.delete(self.age, test_set_idx, axis=0)
-        self.race = np.delete(self.race, test_set_idx, axis=0)
-        self.gender = np.delete(self.gender, test_set_idx, axis=0)
-        self.data = np.delete(self.data, test_set_idx, axis=0)
-        
-        # Set target array
-        # We choose the age as the label of the image. If the 
-        if self.target_attribute == "age":
-            self.test_targets = self.test_age
-        elif self.target_attribute == "gender":
-            self.test_targets = self.test_gender
-        elif self.target_attribute == "race":
-            self.test_targets = self.test_race
     
     def _get_unique_vals_in_array(self, array_to_check):
         

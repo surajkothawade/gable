@@ -270,6 +270,35 @@ def create_ood_data(fullset, testset, split_cfg, num_cls, isnumpy, augVal):
     else:
         return train_set, val_set, test_set, lake_set, selected_classes
 
+
+def curate_test_set(fullset, example_factor=1):
+        
+    # We want a balance between age, race, gender in our test set.
+    # Meaning for a specific age, race, and gender tuple, we should 
+    # have a uniform distribution.
+    test_set_idx = []
+        
+    full_idx = [x for x in range(len(fullset.age))]
+    for i in range(fullset.n_age):
+        ages_to_search = np.where(fullset.age == i)[0]
+        ages_idx = np.array(full_idx)[ages_to_search]
+        for j in range(fullset.n_gender):
+            gender_project = fullset.gender[ages_idx]
+            age_genders_to_search = np.where(gender_project == j)[0]
+            age_genders_idx = np.array(ages_idx)[age_genders_to_search]
+            for k in range(fullset.n_race):
+                age_gender_project = fullset.race[age_genders_idx]
+                age_gender_races_to_search = np.where(age_gender_project == k)[0]
+                age_gender_races_idx = np.array(age_genders_idx)[age_gender_races_to_search]
+                for l in range(example_factor):
+                    if l >= len(age_gender_races_idx):
+                        continue
+                    add_index = age_gender_races_idx[l]
+                    test_set_idx.append(add_index)
+        
+    return test_set_idx
+    
+
 def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     
     # Set random seed to ensure reproducibility
@@ -287,9 +316,16 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     # Obtain the target attribute to imbalance
     imbalance_attribute = getattr(fullset, split_cfg['attr'])
     
+    # Before the other sets are constructed, curate a test set.
+    test_idx = curate_test_set(fullset, example_factor=split_cfg['test_set_size_mult'])
+    
+    
     # Loop over all classes of the attribute domain
     for i in range(attr_domain_size):
-        full_idx_attr_class = list(torch.where(torch.Tensor(imbalance_attribute) == i)[0].cpu().numpy())
+        full_idx_attr_class = torch.where(torch.Tensor(imbalance_attribute) == i)[0].cpu().numpy()
+        
+        # Make sure to exclude those already chosen by the test set.
+        full_idx_attr_class = list(np.setdiff1d(full_idx_attr_class, np.array(test_idx)))
         
         # Do not bother with attribute classes that have no elements to choose.
         if len(full_idx_attr_class) == 0:
@@ -324,10 +360,7 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
     val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
     lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
-    
-    # Specifically use the test set curated in UTKFace/FairFace
-    test_set = copy.deepcopy(fullset)
-    test_set.set_use_test_data(True)
+    test_set = custom_subset(fullset, test_idx, torch.Tensor(fullset.targets)[test_idx], age_attributes=fullset.age, race_attributes=fullset.race, gender_attributes=fullset.gender)
     
     # If specified, create and return additional numpy arrays. Otherwise, just return custom subsets and selected attribute classes
     if isnumpy:
@@ -558,11 +591,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
       
     # NEEDS A COUPLE CHANGES BEFORE IT CAN BE IN USE.
-    """
     if(dset_name=="fairface"):
-        # We are targeting the age class
-        num_cls=9
-        
         # Pull transform from above
         utkface_transform = transforms.Compose([
             transforms.ToTensor(),
@@ -571,6 +600,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         
         # Get UTKFace
         fullset = FairFace(root=datadir, target_type=split_cfg["target_attr"], download=True, transform=utkface_transform, load_cap=50000)
+        num_cls = fullset.nclasses
         
         # Currently, only supporting attribute imbalance as that is the purpose of the UTKFace dataset here.
         if(feature=="attrimb"):
@@ -582,4 +612,3 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 train_set, val_set, test_set, lake_set, imb_attr_cls_idx = create_attr_imb(fullset, split_cfg, split_cfg['attr_dom_size'], isnumpy, augVal)
                 print("UTKFace Custom dataset stats: Train size:", len(train_set), "Val size:", len(val_set), "Test size:", len(test_set), "Lake size:", len(lake_set))
                 return train_set, val_set, test_set, lake_set, imb_attr_cls_idx, num_cls
-    """

@@ -46,7 +46,6 @@ class FairFace(VisionDataset):
         
         # Load dataset and populate in attributes
         self._get_datapoints_as_numpy(load_cap)
-        self._curate_test_set()
         
     def __getitem__(self, index):
         
@@ -115,40 +114,6 @@ class FairFace(VisionDataset):
         elif string_label == "Black":
             return 6
 
-    def _curate_test_set(self, example_factor=1):
-        
-        # We want a balance between age, race, gender in our test set.
-        # Meaning for a specific age, race, and gender tuple, we should 
-        # have a uniform distribution.
-        test_set_idx = []
-        
-        full_idx = [x for x in range(len(self.age))]
-        for i in range(self.n_age):
-            ages_to_search = np.where(self.age == i)[0]
-            ages_idx = np.array(full_idx)[ages_to_search]
-            for j in range(self.n_gender):
-                gender_project = self.gender[ages_idx]
-                age_genders_to_search = np.where(gender_project == j)[0]
-                age_genders_idx = np.array(ages_idx)[age_genders_to_search]
-                for k in range(self.n_race):
-                    age_gender_project = self.race[age_genders_idx]
-                    age_gender_races_to_search = np.where(age_gender_project == k)[0]
-                    age_gender_races_idx = np.array(age_genders_idx)[age_gender_races_to_search]
-                    for l in range(example_factor):
-                        if l >= len(age_gender_races_idx):
-                            continue
-                        add_index = age_gender_races_idx[l]
-                        test_set_idx.append(add_index)
-        
-        self.test_age = self.age[test_set_idx]
-        self.test_race = self.race[test_set_idx]
-        self.test_gender = self.gender[test_set_idx]
-        self.test_data = self.data[test_set_idx]
-        
-        self.age = np.delete(self.age, test_set_idx, axis=0)
-        self.race = np.delete(self.race, test_set_idx, axis=0)
-        self.gender = np.delete(self.gender, test_set_idx, axis=0)
-        self.data = np.delete(self.data, test_set_idx, axis=0)
     
     def _get_unique_vals_in_array(self, array_to_check):
         
@@ -217,14 +182,21 @@ class FairFace(VisionDataset):
             self.race = train_race_attributes
             self.data = train_images
         
+            self.n_age = self._get_unique_vals_in_array(self.age)
+            self.n_gender = self._get_unique_vals_in_array(self.gender)
+            self.n_race = self._get_unique_vals_in_array(self.race)
+        
             # Set target array
             # We choose the age as the label of the image. If the 
             if self.target_attribute == "age":
                 self.targets = self.age
+                self.nclasses = self.n_age
             elif self.target_attribute == "gender":
                 self.targets = self.gender
+                self.nclasses = self.n_gender
             elif self.target_attribute == "race":
                 self.targets = self.race
+                self.nclasses = self.n_race
             return
 
         # Get path of extracted val dataset
@@ -289,10 +261,13 @@ class FairFace(VisionDataset):
         # We choose the age as the label of the image. If the 
         if self.target_attribute == "age":
             self.targets = self.age
+            self.nclasses = self.n_age
         elif self.target_attribute == "gender":
             self.targets = self.gender
+            self.nclasses = self.n_gender
         elif self.target_attribute == "race":
             self.targets = self.race
+            self.nclasses = self.n_race
 
     def _check_integrity(self) -> bool:
         
