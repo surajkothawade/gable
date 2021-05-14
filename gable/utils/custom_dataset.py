@@ -281,10 +281,12 @@ def curate_test_set(fullset, example_factor=1, ignore_idx=None):
         
     full_idx = [x for x in range(len(fullset.age))]
     
+    full_idx = np.setdiff1d(full_idx, ignore_idx)
+    
     np.random.shuffle(full_idx)
     
     for i in range(fullset.n_age):
-        ages_to_search = np.where(fullset.age == i)[0]
+        ages_to_search = np.where(fullset.age[full_idx] == i)[0]
         ages_idx = np.array(full_idx)[ages_to_search]
         for j in range(fullset.n_gender):
             gender_project = fullset.gender[ages_idx]
@@ -299,11 +301,6 @@ def curate_test_set(fullset, example_factor=1, ignore_idx=None):
                     if l >= len(age_gender_races_idx):
                         break
                     add_index = age_gender_races_idx[l]
-                    
-                    if ignore_idx is not None:
-                        if add_index in ignore_idx:
-                            continue
-                    
                     test_set_idx.append(add_index)
                     l += 1
         
@@ -328,7 +325,7 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     
     # Before the other sets are constructed, curate a test set.
     test_idx = curate_test_set(fullset, example_factor=split_cfg['test_set_size_mult'])
-    
+    print("aaa")
     # Curate an initial train set that is also balanced in the same fashion (but randomized).
     nclasses = split_cfg['attr_dom_size']
     temp_train_size = nclasses * split_cfg['per_attr_train']
