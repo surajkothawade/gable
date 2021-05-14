@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import PIL.Image as Image
 import copy
+import math
 
 from .UTKFace import UTKFace
 from .FairFace import FairFace
@@ -271,7 +272,7 @@ def create_ood_data(fullset, testset, split_cfg, num_cls, isnumpy, augVal):
         return train_set, val_set, test_set, lake_set, selected_classes
 
 
-def curate_test_set(fullset, example_factor=1):
+def curate_test_set(fullset, example_factor=1, ignore_idx=None):
         
     # We want a balance between age, race, gender in our test set.
     # Meaning for a specific age, race, and gender tuple, we should 
@@ -279,6 +280,9 @@ def curate_test_set(fullset, example_factor=1):
     test_set_idx = []
         
     full_idx = [x for x in range(len(fullset.age))]
+    
+    np.random.shuffle(full_idx)
+    
     for i in range(fullset.n_age):
         ages_to_search = np.where(fullset.age == i)[0]
         ages_idx = np.array(full_idx)[ages_to_search]
@@ -290,19 +294,25 @@ def curate_test_set(fullset, example_factor=1):
                 age_gender_project = fullset.race[age_genders_idx]
                 age_gender_races_to_search = np.where(age_gender_project == k)[0]
                 age_gender_races_idx = np.array(age_genders_idx)[age_gender_races_to_search]
-                for l in range(example_factor):
+                l = 0
+                while l < example_factor:
                     if l >= len(age_gender_races_idx):
-                        continue
+                        break
                     add_index = age_gender_races_idx[l]
+                    
+                    if ignore_idx is not None:
+                        if add_index in ignore_idx:
+                            continue
+                    
                     test_set_idx.append(add_index)
+                    l += 1
         
     return test_set_idx
-    
 
 def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     
     # Set random seed to ensure reproducibility
-    np.random.seed(42)
+    np.random.seed(43)
     
     # Selection idx for train, val, lake sets
     train_idx = []
@@ -319,6 +329,43 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
     # Before the other sets are constructed, curate a test set.
     test_idx = curate_test_set(fullset, example_factor=split_cfg['test_set_size_mult'])
     
+    # Curate an initial train set that is also balanced in the same fashion (but randomized).
+    nclasses = split_cfg['attr_dom_size']
+    temp_train_size = nclasses * split_cfg['per_attr_train']
+    expected_train_size = len(split_cfg['attr_imb_cls']) * split_cfg['per_attr_imb_train'] + (nclasses - len(split_cfg["attr_imb_cls"])) * split_cfg['per_attr_train']
+    one_factor_test_size = fullset.n_age * fullset.n_gender * fullset.n_race
+    train_set_factor = math.ceil(temp_train_size / one_factor_test_size)
+    train_idx = curate_test_set(fullset, example_factor=train_set_factor, ignore_idx=test_idx)
+    
+    if len(train_idx) > expected_train_size:
+        for imbalanced_attribute_val in range(nclasses):
+            
+            # Achieve the requested number of imbalanced samples.
+            proj_imbalance_attribute = imbalance_attribute[train_idx]
+            
+            if imbalanced_attribute_val in split_cfg['attr_imb_cls']:
+                
+                # Go to next iteration of loop if this class already has the equal per_attr_imb_train.
+                imb_attr_val_idx = np.where(proj_imbalance_attribute == imbalanced_attribute_val)[0].tolist()
+                if len(imb_attr_val_idx) == split_cfg['per_attr_imb_train']:
+                    continue
+                
+                # Otherwise, pick random indices to delete
+                num_remove = len(imb_attr_val_idx) - split_cfg['per_attr_imb_train']
+                np.random.shuffle(imb_attr_val_idx)
+                indices_to_trim = np.array(imb_attr_val_idx)[list(range(num_remove))]
+                train_idx = np.setdiff1d(train_idx, np.array(train_idx)[indices_to_trim])
+            else:
+                # Go to next iteration of loop if this class already has the equal per_attr_imb_train.
+                imb_attr_val_idx = np.where(proj_imbalance_attribute == imbalanced_attribute_val)[0].tolist()
+                if len(imb_attr_val_idx) == split_cfg['per_attr_train']:
+                    continue
+                
+                # Otherwise, pick random indices to delete
+                num_remove = len(imb_attr_val_idx) - split_cfg['per_attr_train']
+                np.random.shuffle(imb_attr_val_idx)
+                indices_to_trim = np.array(imb_attr_val_idx)[list(range(num_remove))]
+                train_idx = np.setdiff1d(train_idx, np.array(train_idx)[indices_to_trim])
     
     # Loop over all classes of the attribute domain
     for i in range(attr_domain_size):
@@ -334,23 +381,18 @@ def create_attr_imb(fullset, split_cfg, attr_domain_size, isnumpy, augVal):
         # If the attribute was chosen to be imbalanced, select a random subset of the imbalanced size for train, val, lake sets.
         # Otherwise, select random subsets of the default size for train, test, val sets.
         if i in selected_attribute_classes:
-            attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_imb_train'], replace=False))
-            remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
-            attr_class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_val'], replace=False))
-            remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
+            attr_class_val_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_imb_val'], replace=False))
+            remain_idx = list(set(full_idx_attr_class) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_imb_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
         else:
-            attr_class_train_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_train'], replace=False))
-            remain_idx = list(set(full_idx_attr_class) - set(attr_class_train_idx))
-            attr_class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_val'], replace=False))
-            remain_idx = list(set(remain_idx) - set(attr_class_val_idx))
+            attr_class_val_idx = list(np.random.choice(np.array(full_idx_attr_class), size=split_cfg['per_attr_val'], replace=False))
+            remain_idx = list(set(full_idx_attr_class) - set(attr_class_val_idx))
             attr_class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_attr_lake'], replace=False))
             remain_idx = list(set(remain_idx) - set(attr_class_lake_idx))
             
         # Add selected idx to each set. If augVal, then augment training set 
         # with validation samples from the imbalanced attribute classes     
-        train_idx += attr_class_train_idx
         if augVal and i in selected_attribute_classes:
             train_idx += attr_class_val_idx
         val_idx += attr_class_val_idx

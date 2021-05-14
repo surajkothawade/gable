@@ -39,7 +39,7 @@ print(gend_freq)
 # Set parameters like the class imbalance function. Here, we must provide an attribute domain size.
 # It specifies the number of values that the imbalance attribute may take. In the case of the race 
 # attribute in FairFace, race can take 4 different values, so attr_domain_size is set to 4.
-isnumpy = True
+isnumpy = False
 augVal = False
 
 # The following shows what the split config should look like. Here, we specify the attribute to imbalance 
@@ -60,14 +60,15 @@ split_cfg = {
     }
 
 # We perform the attribute imbalance
-X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, selected_classes, num_cls = load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy, augVal)
+#X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, 
+train_set, val_set, test_set, lake_set, selected_classes, num_cls = load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy, augVal)
 
 age_freq = [0 for x in range(9)]
 race_freq = [0 for x in range(7)]
 gend_freq = [0 for x in range(2)]
-test_this_set = test_set
-test_this_data = X_val
-test_this_label = y_val
+test_this_set = train_set
+#test_this_data = X_val
+#test_this_label = y_val
 for i in range(len(test_this_set)):
     
     #plt.imshow(test_this_data[i])

@@ -63,10 +63,7 @@ class UTKFace(VisionDataset):
     def __len__(self) -> int:
         
         # Return the length of one of the attribute arrays
-        if self.use_test_data:
-            return len(self.test_age)
-        else:
-            return len(self.age)
+        return len(self.age)
     
     def _get_unique_vals_in_array(self, array_to_check):
         
