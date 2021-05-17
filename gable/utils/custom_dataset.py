@@ -10,6 +10,8 @@ from torch.utils.data import Dataset, random_split
 from torchvision import datasets, transforms
 import PIL.Image as Image
 from sklearn.datasets import load_boston
+from .downscale_imagenet import ImageNet_Downscale
+
 np.random.seed(42)
 torch.manual_seed(42)
 
@@ -523,6 +525,49 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
         ])
         fullset = torchvision.datasets.CIFAR100(root=datadir, train=True, download=True, transform=cifar100_transform)
         test_set = torchvision.datasets.CIFAR100(root=datadir, train=False, download=True, transform=cifar100_transform)
+        if(feature=="classimb"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+            else:    
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+        if(feature=="ood"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(fullset, test_set, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set), "Test set: ", len(test_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, ood_cls_idx, num_cls
+            else:
+                train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(fullset, test_set, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set), "Test set: ", len(test_set))
+                return train_set, val_set, test_set, lake_set, ood_cls_idx, num_cls
+        
+        if(feature=="vanilla"):
+            X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set = getVanillaData(fullset, split_cfg)
+            print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            if(isnumpy):
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
+
+        if(feature=="duplicate"):
+            X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, lake_set = getDuplicateData(fullset, split_cfg)
+            print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            if(isnumpy):
+                return X_tr, y_tr, X_val, y_val, X_unlabeled_rep, y_unlabeled_rep, train_set, val_set, test_set, lake_set, num_cls
+            else:
+                return train_set, val_set, test_set, lake_set, num_cls
+    
+    if(dset_name=="imagenet_downsampled"):
+        num_cls=1000
+        imagenet_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) # ImageNet mean/std
+            ])
+        fullset = ImageNet_Downscale(root=datadir, train=True, transform=imagenet_transform)
+        test_set = ImageNet_Downscale(root=datadir, train=False, transform=imagenet_transform)
         if(feature=="classimb"):
             if(isnumpy):
                 X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
