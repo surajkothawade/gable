@@ -3,6 +3,7 @@ import numpy as np
 import os
 import torch
 import torchvision
+import math
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -304,19 +305,90 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
             remain_idx = list(set(full_idx_class) - set(class_train_idx))
             class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_val'], replace=False))
             remain_idx = list(set(remain_idx) - set(class_val_idx))
-            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_lake'], replace=False))
         else:
             class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_class_train'], replace=False))
             remain_idx = list(set(full_idx_class) - set(class_train_idx))
             class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_val'], replace=False))
             remain_idx = list(set(remain_idx) - set(class_val_idx))
-            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_lake'], replace=False))
-    
+      
         train_idx += class_train_idx
         if(augVal and (i in selected_classes)): #augment with samples only from the imbalanced classes
             train_idx += class_val_idx
         val_idx += class_val_idx
-        lake_idx += class_lake_idx
+        
+    # class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_lake'], replace=False))
+    
+    # We still need to construct the lake set. In this case, we are given a ratio of bal to imbal. Either we can satisfy the 
+    # total number of balanced AND the total number of imbalanced per class, only the total number of balanced, or the total 
+    # number of imbalanced. In any case, we ensure the ratio is maintained for each class, even if that means decreasing the 
+    # expected number of points in that class.
+    
+    # Tabulate total number of imbalanced/balanced remaining examples
+    remaining_full_set_idx = [x for x in range(len(fullset))]
+    remaining_full_set_idx = list(set(remaining_full_set_idx) - set(train_idx))
+    remaining_full_set_idx = list(set(remaining_full_set_idx) - set(val_idx))
+    imbalanced_distribution = list()
+    balanced_distribution = list()
+    total_imbalanced_ex = 0
+    total_balanced_ex = 0
+    
+    for i in range(num_cls):
+        full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
+        
+        # Remove already selected points.
+        full_idx_class = list(full_idx_class - remaining_full_set_idx)
+        
+        if i in selected_classes:
+            total_imbalanced_ex += len(full_idx_class)
+            imbalanced_distribution.append(len(full_idx_class))
+        else:
+            total_balanced_ex += len(full_idx_class)
+            balanced_distribution.append(len(full_idx_class))
+
+    imbalanced_distribution = [x / total_imbalanced_ex for x in imbalanced_distribution]
+    balanced_distribution = [x / total_balanced_ex for x in balanced_distribution]
+    
+    # Calculate the new ratio
+    remaining_imbal_bal_ratio = total_imbalanced_ex / total_balanced_ex
+    target_imbal_bal_ratio = split_cfg['lake_imb_bal_ratio']
+    
+    if remaining_imbal_bal_ratio > target_imbal_bal_ratio:
+        
+        # We need to select fewer imbalanced examples. Calculate the number of imbalanced ex. that we need.
+        target_imbalanced_instance_count = target_imbal_bal_ratio * total_balanced_ex
+        
+        # Loop over all classes, adding every balanced example to the lake set. Only add the proportion of the 
+        # other classes to the lake set.
+        for i in range(num_cls):
+            full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
+        
+            # Remove already selected points.
+            full_idx_class = list(full_idx_class - remaining_full_set_idx)
+            
+            if i in selected_classes:
+                choose_this_many = math.floor(imbalanced_distribution.pop(0) * target_imbalanced_instance_count)
+                lake_idx += list(np.random.choice(np.array(full_idx_class), size=choose_this_many, replace=False))
+            else:
+                lake_idx += full_idx_class
+    else:
+        
+        # We need to select fewer balanced exampled. Calculate the number of balanced ex. that we need.
+        target_balanced_instance_count = total_imbalanced_ex / target_imbal_bal_ratio
+        
+        # Loop over all classes, adding every imbalanced example to the lake set. Only add the proportion of the 
+        # other classes to the lake set.
+        for i in range(num_cls):
+            full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
+        
+            # Remove already selected points.
+            full_idx_class = list(full_idx_class - remaining_full_set_idx)
+            
+            if i in selected_classes:
+                lake_idx += full_idx_class
+            else:
+                choose_this_many = math.floor(balanced_distribution.pop(0) * target_balanced_instance_count)
+                lake_idx += list(np.random.choice(np.array(full_idx_class), size=choose_this_many, replace=False))
+    
     # if(dset_name=="mnist"):
     #     train_set = custom_subset(torch.repeat_interleave(fullset.data.float().unsqueeze(1), 3, 1), train_idx, torch.Tensor(fullset.targets.float())[train_idx])
     #     val_set = custom_subset(torch.repeat_interleave(fullset.data.float().unsqueeze(1), 3, 1), val_idx, torch.Tensor(fullset.targets.float())[val_idx])
