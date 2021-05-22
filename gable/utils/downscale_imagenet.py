@@ -71,14 +71,14 @@ class ImageNet_Downscale(VisionDataset):
                 if numpy_train_data is None:
                     numpy_dict = np.load(load_path)
                     numpy_train_data = numpy_dict["data"]
-                    numpy_train_labels = numpy_dict["labels"]
+                    numpy_train_labels = numpy_dict["labels"] # Zero-index labels
                 else:
                     numpy_dict = np.load(load_path)
                     numpy_train_data = np.concatenate((numpy_train_data, numpy_dict["data"]))
                     numpy_train_labels = np.concatenate((numpy_train_labels, numpy_dict["labels"]))
             numpy_train_data = np.reshape(numpy_train_data, (-1,3,32,32)).transpose(0,2,3,1)
             self.data = numpy_train_data
-            self.targets = numpy_train_labels
+            self.targets = numpy_train_labels - 1
         else:
             # Repeat for test data.
             # Get path of train npz batches
@@ -107,4 +107,4 @@ class ImageNet_Downscale(VisionDataset):
             # Set attributes in this Dataset.
             numpy_test_data = np.reshape(numpy_test_data, (-1,3,32,32)).transpose(0,2,3,1)
             self.data = numpy_test_data
-            self.targets = numpy_test_labels
+            self.targets = numpy_test_labels - 1
