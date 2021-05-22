@@ -337,7 +337,6 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
            
         # Remove already selected points.
         full_idx_class = list(set(full_idx_class) & set(remaining_full_set_idx))
-        print(i, len(full_idx_class))
         
         if i in selected_classes:
             total_imbalanced_ex += len(full_idx_class)
@@ -351,8 +350,6 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
     # Calculate the new ratio
     remaining_imbal_bal_ratio = total_imbalanced_ex / total_balanced_ex
     target_imbal_bal_ratio = split_cfg['lake_imb_bal_ratio']
-    
-    print(remaining_imbal_bal_ratio)
     
     if remaining_imbal_bal_ratio > target_imbal_bal_ratio:
         
