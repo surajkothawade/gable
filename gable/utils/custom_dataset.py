@@ -327,16 +327,17 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
     remaining_full_set_idx = [x for x in range(len(fullset))]
     remaining_full_set_idx = list(set(remaining_full_set_idx) - set(train_idx))
     remaining_full_set_idx = list(set(remaining_full_set_idx) - set(val_idx))
+    
     imbalanced_distribution = list()
     balanced_distribution = list()
     total_imbalanced_ex = 0
     total_balanced_ex = 0
-    
     for i in range(num_cls):
         full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
-        
+           
         # Remove already selected points.
-        full_idx_class = list(full_idx_class - remaining_full_set_idx)
+        full_idx_class = list(set(full_idx_class) & set(remaining_full_set_idx))
+        print(i, len(full_idx_class))
         
         if i in selected_classes:
             total_imbalanced_ex += len(full_idx_class)
@@ -347,10 +348,11 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
 
     imbalanced_distribution = [x / total_imbalanced_ex for x in imbalanced_distribution]
     balanced_distribution = [x / total_balanced_ex for x in balanced_distribution]
-    
     # Calculate the new ratio
     remaining_imbal_bal_ratio = total_imbalanced_ex / total_balanced_ex
     target_imbal_bal_ratio = split_cfg['lake_imb_bal_ratio']
+    
+    print(remaining_imbal_bal_ratio)
     
     if remaining_imbal_bal_ratio > target_imbal_bal_ratio:
         
@@ -363,7 +365,7 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
             full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
         
             # Remove already selected points.
-            full_idx_class = list(full_idx_class - remaining_full_set_idx)
+            full_idx_class = list(set(full_idx_class) & set(remaining_full_set_idx))
             
             if i in selected_classes:
                 choose_this_many = math.floor(imbalanced_distribution.pop(0) * target_imbalanced_instance_count)
@@ -381,7 +383,7 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
             full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
         
             # Remove already selected points.
-            full_idx_class = list(full_idx_class - remaining_full_set_idx)
+            full_idx_class = list(set(full_idx_class) & set(remaining_full_set_idx))
             
             if i in selected_classes:
                 lake_idx += full_idx_class
