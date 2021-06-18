@@ -73,13 +73,22 @@ class MobileNetV2(nn.Module):
         return nn.Sequential(*layers)
 
 
-    def forward(self, x, last=False):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layers(out)
-        out = F.relu(self.bn2(self.conv2(out)))
-        # NOTE: change pooling kernel_size 7 -> 4 for CIFAR10
-        out = F.avg_pool2d(out, 7)
-        e = out.view(out.size(0), -1)
+    def forward(self, x, last=False, freeze=False):
+        if freeze:
+            with torch.no_grad():
+                out = F.relu(self.bn1(self.conv1(x)))
+                out = self.layers(out)
+                out = F.relu(self.bn2(self.conv2(out)))
+                # NOTE: change pooling kernel_size 7 -> 4 for CIFAR10
+                out = F.avg_pool2d(out, 7)
+                e = out.view(out.size(0), -1)
+        else:
+            out = F.relu(self.bn1(self.conv1(x)))
+            out = self.layers(out)
+            out = F.relu(self.bn2(self.conv2(out)))
+            # NOTE: change pooling kernel_size 7 -> 4 for CIFAR10
+            out = F.avg_pool2d(out, 7)
+            e = out.view(out.size(0), -1)
         out = self.linear(e)
         if last:
             return out, e

@@ -704,7 +704,8 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
     
     if(dset_name=="breast_density"):
         num_cls=4
-        data_dir = "/home/snk170001/research/data/custom/bc_train_test"
+        data_dir = datadir
+#         data_dir = "/home/snk170001/research/data/custom/bc_train_test"
         input_size=224
         data_transforms = {
             'train': transforms.Compose([
