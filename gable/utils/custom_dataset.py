@@ -521,6 +521,55 @@ def create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal
     else:
         return train_set, val_set, lake_set, selected_classes
 
+def create_longtail(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal):
+    np.random.seed(42)
+    train_idx = []
+    val_idx = []
+    lake_idx = []
+    selected_classes=split_cfg['sel_cls_idx']
+    for i in range(num_cls): #all_classes
+        full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
+        if(i in selected_classes):
+            class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_imbclass_train'][i], replace=False))
+            remain_idx = list(set(full_idx_class) - set(class_train_idx))
+            class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_val'][i], replace=False))
+            remain_idx = list(set(remain_idx) - set(class_val_idx))
+            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_lake'][i], replace=False))
+        else:
+            class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_class_train'][i], replace=False))
+            remain_idx = list(set(full_idx_class) - set(class_train_idx))
+            class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_val'][i], replace=False))
+            remain_idx = list(set(remain_idx) - set(class_val_idx))
+            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_lake'][i], replace=False))
+    
+        train_idx += class_train_idx
+        if(augVal and (i in selected_classes)): #augment with samples only from the imbalanced classes
+            train_idx += class_val_idx
+        val_idx += class_val_idx
+        lake_idx += class_lake_idx
+    train_set = custom_subset(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
+    val_set = custom_subset(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
+    lake_set = custom_subset(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
+    if(isnumpy):
+        if(dset_name=="mnist"):
+            X  = fullset.data.numpy()
+            y = torch.from_numpy(np.array(fullset.targets.float()))
+        elif(dset_name=="svhn"):
+            X = fullset.data
+            y = torch.from_numpy(np.array(fullset.labels))
+        else:            
+            X = fullset.data
+            y = torch.from_numpy(np.array(fullset.targets))
+        X_tr = X[train_idx]
+        y_tr = y[train_idx]
+        X_val = X[val_idx]
+        y_val = y[val_idx]
+        X_unlabeled = X[lake_idx]
+        y_unlabeled = y[lake_idx]
+        return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set, selected_classes
+    else:
+        return train_set, val_set, lake_set, selected_classes
+
 def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, augVal=False, dataAug=True):
     if(not(os.path.exists(datadir))):
         os.mkdir(datadir)
@@ -542,6 +591,15 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, isnumpy=False, a
                 return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
             else:    
                 train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+        if(feature=="longtail"):
+            if(isnumpy):
+                X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, lake_set, imb_cls_idx = create_longtail(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
+                print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+                return X_tr, y_tr, X_val, y_val, X_unlabeled, y_unlabeled, train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
+            else:    
+                train_set, val_set, lake_set, imb_cls_idx = create_longtail(dset_name, fullset, split_cfg, num_cls, isnumpy, augVal)
                 print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
                 return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
