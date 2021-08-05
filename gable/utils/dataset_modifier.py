@@ -5,6 +5,7 @@ Created on Wed Aug  4 21:22:34 2021
 @author: nbeck
 """
 
+import random
 import numpy as np
 import torch
 import torchvision
@@ -81,15 +82,6 @@ def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug
         class_idx = list(set(class_idx) - set(class_val_idx))
         class_lake_idx = list(np.random.choice(class_idx, size=num_from_class_to_select_for_lake, replace=False))
         
-        # We can do the duplication step here. If i represents a normal class, we can duplicate some of the indices 
-        # in the lake. When we go to create a subset, this actually allows us to artificially duplicate points.
-        
-        #if i not in rare_class_list and i not in ood_class_list:
-            
-        num_lake_duplicate_repetitions = split_cfg['num_rep']
-        lake_duplicated_subset_size = split_cfg['per_normal_class_lake_duplicated_subset_size']
-        class_lake_idx = class_lake_idx[lake_duplicated_subset_size:] + class_lake_idx[:lake_duplicated_subset_size] * num_lake_duplicate_repetitions
-            
         # Some instances require augmenting the train set with examples from the validation set. This is done here.
         if augVal:
             if i in rare_class_list or i not in ood_class_list:
@@ -100,6 +92,16 @@ def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug
         val_idx += class_val_idx
         lake_idx += class_lake_idx
         
+    # Now, we perform the duplication step on the lake.
+    num_lake_duplicate_repetitions = split_cfg['num_rep']
+    lake_duplicated_subset_size = split_cfg['lake_duplicated_subset_size']
+    lake_idx = lake_idx[lake_duplicated_subset_size:] + lake_idx[:lake_duplicated_subset_size] * num_lake_duplicate_repetitions
+        
+    # Now that we have the idx for each set, we should permute them randomly.
+    random.shuffle(train_idx)
+    random.shuffle(val_idx)
+    random.shuffle(lake_idx)
+    
     # Now that we have the index lists for each set, we now must fix each point's label due to the presence of OOD.
     train_set_labels = get_ood_targets(dataset_labels[train_idx], num_idc_classes)
     val_set_labels = get_ood_targets(dataset_labels[val_idx], num_idc_classes)
