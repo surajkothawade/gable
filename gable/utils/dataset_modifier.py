@@ -5,7 +5,6 @@ Created on Wed Aug  4 21:22:34 2021
 @author: nbeck
 """
 
-import random
 import numpy as np
 import torch
 import torchvision
@@ -25,6 +24,8 @@ def get_ood_targets(targets, num_idc_cls):
     return torch.Tensor(ood_targets)
 
 def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug):
+    
+    np.random.seed(42)
     
     cifar_test_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
     if dataAug:
@@ -92,15 +93,20 @@ def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug
         val_idx += class_val_idx
         lake_idx += class_lake_idx
         
+    # Now that we have the idx for each set, we should permute them randomly.
+    np.random.shuffle(train_idx)
+    np.random.shuffle(val_idx)
+    np.random.shuffle(lake_idx)
+        
     # Now, we perform the duplication step on the lake.
     num_lake_duplicate_repetitions = split_cfg['num_rep']
     lake_duplicated_subset_size = split_cfg['lake_duplicated_subset_size']
     lake_idx = lake_idx[lake_duplicated_subset_size:] + lake_idx[:lake_duplicated_subset_size] * num_lake_duplicate_repetitions
-        
-    # Now that we have the idx for each set, we should permute them randomly.
-    random.shuffle(train_idx)
-    random.shuffle(val_idx)
-    random.shuffle(lake_idx)
+    
+    # Do one last bout of shuffling
+    np.random.shuffle(train_idx)
+    np.random.shuffle(val_idx)
+    np.random.shuffle(lake_idx)
     
     # Now that we have the index lists for each set, we now must fix each point's label due to the presence of OOD.
     train_set_labels = get_ood_targets(dataset_labels[train_idx], num_idc_classes)
