@@ -45,6 +45,9 @@ def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug
     num_idc_classes = split_cfg['num_idc_classes']
     ood_class_list = list(range(split_cfg['num_idc_classes'], num_cls))
     
+    # Specify some classes as being duplicated.
+    duplicated_class_list = split_cfg['dup_classes']
+    
     # Ensure that these classes do not intersect
     if len(set(rare_class_list).intersection(set(ood_class_list))) > 0:
         raise ValueError("Rare/OOD class mismatch")
@@ -88,22 +91,23 @@ def cifar10_dataset_combo_perturbation(root, split_cfg, isnumpy, augVal, dataAug
             if i in rare_class_list or i not in ood_class_list:
                 train_idx += class_val_idx
             
+        # If i is a duplicated class, then we must adjust this class addition.
+        if i in duplicated_class_list:
+            
+            # Shuffle the selection to ensure random duplication
+            np.random.shuffle(class_lake_idx)
+            
+            # Do the duplication
+            pc_num_dup = split_cfg['num_rep']
+            pc_dup_subset_size_in_lake = split_cfg['pc_dup_subset_size']
+            class_lake_idx = class_lake_idx[:pc_dup_subset_size_in_lake] * pc_num_dup + class_lake_idx[pc_dup_subset_size_in_lake:]
+            
         # Add this bout of selection to the running lists for each set
         train_idx += class_train_idx
         val_idx += class_val_idx
         lake_idx += class_lake_idx
         
     # Now that we have the idx for each set, we should permute them randomly.
-    np.random.shuffle(train_idx)
-    np.random.shuffle(val_idx)
-    np.random.shuffle(lake_idx)
-        
-    # Now, we perform the duplication step on the lake.
-    num_lake_duplicate_repetitions = split_cfg['num_rep']
-    lake_duplicated_subset_size = split_cfg['lake_duplicated_subset_size']
-    lake_idx = lake_idx[lake_duplicated_subset_size:] + lake_idx[:lake_duplicated_subset_size] * num_lake_duplicate_repetitions
-    
-    # Do one last bout of shuffling
     np.random.shuffle(train_idx)
     np.random.shuffle(val_idx)
     np.random.shuffle(lake_idx)
